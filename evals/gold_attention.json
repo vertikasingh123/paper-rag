@@ -1,0 +1,93 @@
+{
+  "paper": "Attention Is All You Need (arXiv:1706.03762)",
+  "notes": "Evidence is keyed on distinctive strings rather than page numbers, so the set survives a different PDF build of the same paper. A question counts as retrieved if ANY retrieved chunk contains ANY evidence string.",
+  "questions": [
+    {
+      "id": "q01",
+      "question": "How many layers are in the encoder?",
+      "evidence": ["composed of a stack of N = 6", "N = 6 identical layers", "stack of N= 6"],
+      "answer_contains": ["6"]
+    },
+    {
+      "id": "q02",
+      "question": "What BLEU score does the big model reach on WMT 2014 English-to-German?",
+      "evidence": ["28.4", "BLEU score of 28.4"],
+      "answer_contains": ["28.4"]
+    },
+    {
+      "id": "q03",
+      "question": "What BLEU score does it reach on English-to-French?",
+      "evidence": ["41.8", "41.0"],
+      "answer_contains": ["41"]
+    },
+    {
+      "id": "q04",
+      "question": "How long did the big model take to train, and on what hardware?",
+      "evidence": ["3.5 days on eight P100 GPUs", "eight P100 GPUs", "3.5 days"],
+      "answer_contains": ["3.5", "P100"]
+    },
+    {
+      "id": "q05",
+      "question": "Why do the authors scale the dot products by 1/sqrt(d_k)?",
+      "evidence": ["pushing the softmax function into regions where it has extremely small gradients", "we suspect that for large values of dk", "extremely small gradients"],
+      "answer_contains": ["gradient"]
+    },
+    {
+      "id": "q06",
+      "question": "How many attention heads does the base model use?",
+      "evidence": ["h = 8 parallel attention layers", "we employ h = 8", "h= 8"],
+      "answer_contains": ["8"]
+    },
+    {
+      "id": "q07",
+      "question": "How is positional information injected into the model?",
+      "evidence": ["sine and cosine functions of different frequencies", "positional encodings", "sinusoidal"],
+      "answer_contains": ["sin"]
+    },
+    {
+      "id": "q08",
+      "question": "What optimizer and learning rate schedule were used?",
+      "evidence": ["We used the Adam optimizer", "warmup_steps", "Adam optimizer"],
+      "answer_contains": ["Adam"]
+    },
+    {
+      "id": "q09",
+      "question": "What dropout rate was used for the base model?",
+      "evidence": ["Pdrop = 0.1", "rate of Pdrop", "dropout to the output of each sub-layer"],
+      "answer_contains": ["0.1"]
+    },
+    {
+      "id": "q10",
+      "question": "What tokenization was used for the English-German data?",
+      "evidence": ["byte-pair encoding", "shared source-target vocabulary of about 37000 tokens", "37000 tokens"],
+      "answer_contains": ["byte-pair"]
+    },
+    {
+      "id": "q11",
+      "question": "What beam size and length penalty were used at inference?",
+      "evidence": ["beam size of 4 and length penalty", "length penalty", "beam search with a beam size of 4"],
+      "answer_contains": ["4"]
+    },
+    {
+      "id": "q12",
+      "question": "What task other than translation did they evaluate on?",
+      "evidence": ["English constituency parsing", "constituency parsing", "Wall Street Journal"],
+      "answer_contains": ["parsing"]
+    },
+    {
+      "id": "u01",
+      "question": "What accuracy does the model achieve on ImageNet classification?",
+      "unanswerable": true
+    },
+    {
+      "id": "u02",
+      "question": "How many dollars did the training run cost?",
+      "unanswerable": true
+    },
+    {
+      "id": "u03",
+      "question": "What are the model's results on Chinese-to-English translation?",
+      "unanswerable": true
+    }
+  ]
+}

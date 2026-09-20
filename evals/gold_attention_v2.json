@@ -1,0 +1,362 @@
+{
+  "paper": "Attention Is All You Need (arXiv:1706.03762v7)",
+  "notes": "40 questions across four difficulty tiers plus 10 unanswerable. Every evidence string was verified verbatim against the chunks this pipeline actually produces (pypdf extraction, chunk_size=900, drop_references=True), so a miss is a retrieval failure, never a gold-set typo.",
+  "tiers": {
+    "lookup": "Direct fact, question vocabulary overlaps the paper's. Should be near-perfect.",
+    "paraphrase": "Same facts, asked in words the paper does not use. Tests the embedding, not string matching.",
+    "table": "The answer is a cell in Table 1-4, surrounded by extraction noise.",
+    "multihop": "Needs two passages, or a comparison the paper never states in one sentence."
+  },
+  "questions": [
+    {
+      "id": "L01",
+      "tier": "lookup",
+      "question": "How many layers are in the encoder stack?",
+      "evidence": ["The encoder is composed of a stack of N= 6 identical layers"],
+      "answer_contains": ["6"]
+    },
+    {
+      "id": "L02",
+      "tier": "lookup",
+      "question": "What is d_model for the base model?",
+      "evidence": ["dimension dmodel = 512"],
+      "answer_contains": ["512"]
+    },
+    {
+      "id": "L03",
+      "tier": "lookup",
+      "question": "How many attention heads does the base model use?",
+      "evidence": ["we employ h= 8 parallel attention layers, or heads"],
+      "answer_contains": ["8"]
+    },
+    {
+      "id": "L04",
+      "tier": "lookup",
+      "question": "What is the inner dimensionality of the position-wise feed-forward network?",
+      "evidence": ["dff= 2048"],
+      "answer_contains": ["2048"]
+    },
+    {
+      "id": "L05",
+      "tier": "lookup",
+      "question": "Which optimizer was used for training?",
+      "evidence": ["We used the Adam optimizer"],
+      "answer_contains": ["adam"]
+    },
+    {
+      "id": "L06",
+      "tier": "lookup",
+      "question": "How many warmup steps were used in the learning rate schedule?",
+      "evidence": ["warmup _steps = 4000"],
+      "answer_contains": ["4000", "4,000"]
+    },
+    {
+      "id": "L07",
+      "tier": "lookup",
+      "question": "What residual dropout rate was used for the base model?",
+      "evidence": ["Pdrop= 0.1"],
+      "answer_contains": ["0.1"]
+    },
+    {
+      "id": "L08",
+      "tier": "lookup",
+      "question": "What label smoothing value was used during training?",
+      "evidence": ["we employed label smoothing of value"],
+      "answer_contains": ["0.1"]
+    },
+    {
+      "id": "L09",
+      "tier": "lookup",
+      "question": "What tokenization was used for the English-German data?",
+      "evidence": ["Sentences were encoded using byte-pair encoding"],
+      "answer_contains": ["byte-pair", "bpe"]
+    },
+    {
+      "id": "L10",
+      "tier": "lookup",
+      "question": "Where is the code for this paper available?",
+      "evidence": ["tensorflow/tensor2tensor"],
+      "answer_contains": ["tensor2tensor"]
+    },
+
+    {
+      "id": "P01",
+      "tier": "paraphrase",
+      "question": "How does the model know what order the words came in?",
+      "evidence": ["we use sine and cosine functions of different frequencies", "we add \"positional encodings\" to the input embeddings"],
+      "answer_contains": ["sin", "positional"]
+    },
+    {
+      "id": "P02",
+      "tier": "paraphrase",
+      "question": "Why is the similarity score shrunk before the softmax?",
+      "evidence": ["pushing the softmax function into regions where it has extremely small gradients"],
+      "answer_contains": ["gradient"]
+    },
+    {
+      "id": "P03",
+      "tier": "paraphrase",
+      "question": "What stops the model from peeking at words it has not generated yet?",
+      "evidence": ["prevent positions from attending to subsequent positions"],
+      "answer_contains": ["mask", "subsequent", "prevent"]
+    },
+    {
+      "id": "P04",
+      "tier": "paraphrase",
+      "question": "How quickly could the smaller version be trained?",
+      "evidence": ["We trained the base models for a total of 100,000 steps or 12 hours"],
+      "answer_contains": ["12"]
+    },
+    {
+      "id": "P05",
+      "tier": "paraphrase",
+      "question": "What machines did they run this on?",
+      "evidence": ["one machine with 8 NVIDIA P100 GPUs"],
+      "answer_contains": ["p100"]
+    },
+    {
+      "id": "P06",
+      "tier": "paraphrase",
+      "question": "How much German text did they have to learn from?",
+      "evidence": ["consisting of about 4.5 million sentence pairs"],
+      "answer_contains": ["4.5"]
+    },
+    {
+      "id": "P07",
+      "tier": "paraphrase",
+      "question": "Did they combine several saved versions of the model before measuring quality?",
+      "evidence": ["averaging the last 5 checkpoints"],
+      "answer_contains": ["checkpoint", "averag"]
+    },
+    {
+      "id": "P08",
+      "tier": "paraphrase",
+      "question": "Does the paper say anything about being able to understand what the model is doing internally?",
+      "evidence": ["self-attention could yield more interpretable models"],
+      "answer_contains": ["interpretable", "interpret"]
+    },
+    {
+      "id": "P09",
+      "tier": "paraphrase",
+      "question": "What older approaches were the authors trying to get away from?",
+      "evidence": ["dispensing with recurrence and convolutions entirely"],
+      "answer_contains": ["recurren", "convolution"]
+    },
+    {
+      "id": "P10",
+      "tier": "paraphrase",
+      "question": "Besides translation, what else did they try the model on?",
+      "evidence": ["we performed experiments on English constituency parsing"],
+      "answer_contains": ["parsing"]
+    },
+
+    {
+      "id": "T01",
+      "tier": "table",
+      "question": "In Table 3, what dev-set BLEU does the base model reach?",
+      "evidence": ["base 6 512 2048 8 64 64 0.1 0.1 100K 4.92 25.8 65"],
+      "answer_contains": ["25.8"]
+    },
+    {
+      "id": "T02",
+      "tier": "table",
+      "question": "How many parameters does the big model have?",
+      "evidence": ["big 6 1024 4096 16 0.3 300K 4.33 26.4 213"],
+      "answer_contains": ["213"]
+    },
+    {
+      "id": "T03",
+      "tier": "table",
+      "question": "What English-to-German BLEU did ConvS2S achieve in Table 2?",
+      "evidence": ["ConvS2S [9] 25.16 40.46"],
+      "answer_contains": ["25.16"]
+    },
+    {
+      "id": "T04",
+      "tier": "table",
+      "question": "What is the training cost in FLOPs of the base Transformer?",
+      "evidence": ["Transformer (base model) 27.3 38.1 3.3"],
+      "answer_contains": ["3.3"]
+    },
+    {
+      "id": "T05",
+      "tier": "table",
+      "question": "What F1 did the Transformer reach on WSJ section 23 in the semi-supervised setting?",
+      "evidence": ["Transformer (4 layers) semi-supervised 92.7"],
+      "answer_contains": ["92.7"]
+    },
+    {
+      "id": "T06",
+      "tier": "table",
+      "question": "What perplexity does the single-head variant reach in Table 3 row A?",
+      "evidence": ["(A)1 512 512 5.29 24.9"],
+      "answer_contains": ["5.29"]
+    },
+    {
+      "id": "T07",
+      "tier": "table",
+      "question": "According to Table 1, what is the maximum path length of a recurrent layer?",
+      "evidence": ["Recurrent O(n·d2) O(n) O(n)"],
+      "answer_contains": ["o(n)"]
+    },
+    {
+      "id": "T08",
+      "tier": "table",
+      "question": "What BLEU did GNMT + RL get on English-to-French?",
+      "evidence": ["GNMT + RL [38] 24.6 39.92"],
+      "answer_contains": ["39.92"]
+    },
+    {
+      "id": "T09",
+      "tier": "table",
+      "question": "What was the best previously published single-model result on English-to-German before the Transformer?",
+      "evidence": ["MoE [32] 26.03 40.56"],
+      "answer_contains": ["26.03", "26.36"]
+    },
+    {
+      "id": "T10",
+      "tier": "table",
+      "question": "What dev BLEU does the variant with d_ff of 4096 achieve?",
+      "evidence": ["4096 4.75 26.2 90"],
+      "answer_contains": ["26.2"]
+    },
+
+    {
+      "id": "M01",
+      "tier": "multihop",
+      "question": "How much does using only one attention head cost in BLEU?",
+      "evidence": ["single-head attention is 0.9 BLEU worse than the best setting"],
+      "answer_contains": ["0.9"]
+    },
+    {
+      "id": "M02",
+      "tier": "multihop",
+      "question": "Did learned positional embeddings work better or worse than the sinusoidal ones?",
+      "evidence": ["produced nearly identical results", "observe nearly identical"],
+      "answer_contains": ["identical", "same", "similar"]
+    },
+    {
+      "id": "M03",
+      "tier": "multihop",
+      "question": "How many training steps did the big model take compared with the base model?",
+      "evidence": ["The big models were trained for 300,000 steps", "100,000 steps or 12 hours"],
+      "answer_contains": ["300,000", "300k"]
+    },
+    {
+      "id": "M04",
+      "tier": "multihop",
+      "question": "What beam size was used for parsing, and how does it differ from the one used for translation?",
+      "evidence": ["We used a beam size of 21and", "beam search with a beam size of 4and length penalty"],
+      "answer_contains": ["21"]
+    },
+    {
+      "id": "M05",
+      "tier": "multihop",
+      "question": "What dropout rate did the English-to-French big model use, and what would it otherwise have been?",
+      "evidence": ["used dropout rate Pdrop= 0.1, instead of 0.3"],
+      "answer_contains": ["0.3"]
+    },
+    {
+      "id": "M06",
+      "tier": "multihop",
+      "question": "Under what condition is self-attention computationally cheaper than recurrence?",
+      "evidence": ["self-attention layers are faster than recurrent layers when the sequence", "smaller than the representation dimensionality"],
+      "answer_contains": ["dimension", "shorter", "smaller"]
+    },
+    {
+      "id": "M07",
+      "tier": "multihop",
+      "question": "What English-to-French BLEU does the paper report for the big model?",
+      "evidence": ["our big model achieves a BLEU score of 41.0", "state-of-the-art BLEU score of 41.8"],
+      "answer_contains": ["41"]
+    },
+    {
+      "id": "M08",
+      "tier": "multihop",
+      "question": "How does the vocabulary used for English-French differ from the one used for English-German?",
+      "evidence": ["split tokens into a 32000 word-piece vocabulary", "vocabulary of about 37000 tokens"],
+      "answer_contains": ["32000", "32,000", "word-piece", "wordpiece"]
+    },
+    {
+      "id": "M09",
+      "tier": "multihop",
+      "question": "What happens to model quality when the attention key dimension is reduced?",
+      "evidence": ["reducing the attention key size dkhurts model quality"],
+      "answer_contains": ["hurt", "worse", "degrad", "reduc"]
+    },
+    {
+      "id": "M10",
+      "tier": "multihop",
+      "question": "How much training data was used for the constituency parsing experiments in each setting?",
+      "evidence": ["about 40K training sentences", "approximately 17M sentences"],
+      "answer_contains": ["40k", "17m"]
+    },
+
+    {
+      "id": "U01",
+      "tier": "unanswerable",
+      "question": "What top-1 accuracy does the model achieve on ImageNet?",
+      "unanswerable": true
+    },
+    {
+      "id": "U02",
+      "tier": "unanswerable",
+      "question": "How many dollars did it cost to train the big model?",
+      "unanswerable": true,
+      "note": "Near-miss: the paper gives training cost in FLOPs, never in currency."
+    },
+    {
+      "id": "U03",
+      "tier": "unanswerable",
+      "question": "What BLEU does the Transformer achieve on Chinese-to-English translation?",
+      "unanswerable": true
+    },
+    {
+      "id": "U04",
+      "tier": "unanswerable",
+      "question": "What was the energy consumption or carbon footprint of the training run?",
+      "unanswerable": true
+    },
+    {
+      "id": "U05",
+      "tier": "unanswerable",
+      "question": "How does the Transformer compare with BERT on these tasks?",
+      "unanswerable": true,
+      "note": "BERT postdates this paper. Tests whether the model answers from pretraining."
+    },
+    {
+      "id": "U06",
+      "tier": "unanswerable",
+      "question": "How many sentences were in each training batch?",
+      "unanswerable": true,
+      "note": "Near-miss: batches are described in tokens (~25000), never in sentences."
+    },
+    {
+      "id": "U07",
+      "tier": "unanswerable",
+      "question": "What is the inference latency in milliseconds per sentence?",
+      "unanswerable": true
+    },
+    {
+      "id": "U08",
+      "tier": "unanswerable",
+      "question": "How many GPUs were used for the constituency parsing experiments?",
+      "unanswerable": true,
+      "note": "Near-miss: GPU count is given for translation training only."
+    },
+    {
+      "id": "U09",
+      "tier": "unanswerable",
+      "question": "Did the authors release the pretrained model weights for download?",
+      "unanswerable": true,
+      "note": "Near-miss: the paper releases code (tensor2tensor), and says nothing about weights."
+    },
+    {
+      "id": "U10",
+      "tier": "unanswerable",
+      "question": "What happens to performance if layer normalization is removed?",
+      "unanswerable": true,
+      "note": "Near-miss: Table 3 ablates heads, dimensions and dropout, but never layer norm."
+    }
+  ]
+}

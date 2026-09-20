@@ -1,0 +1,15 @@
+# Core
+streamlit>=1.38
+pypdf>=5.0
+langchain-text-splitters>=0.3
+sentence-transformers>=3.0
+faiss-cpu>=1.8
+numpy>=1.26
+python-dotenv>=1.0
+
+# LLM providers (both have a free tier; you only need one)
+openai>=1.40        # used for Groq's OpenAI-compatible endpoint
+google-genai>=1.0   # only needed if you use Gemini
+
+# Tests only - generates the synthetic sample paper
+reportlab>=4.0

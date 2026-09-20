@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.cache/
+data/*.pdf
+evals/results/
+.DS_Store

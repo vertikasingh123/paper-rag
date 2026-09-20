@@ -75,16 +75,67 @@ the answer, the prompt requires an explicit "the excerpts provided don't cover
 this" rather than a confident answer from pretraining. The eval set includes
 questions the paper genuinely cannot answer, so this is scored, not assumed.
 
+## Results
+
+Measured on *Attention Is All You Need* (arXiv:1706.03762v7), 48 chunks,
+`all-MiniLM-L6-v2` embeddings, `openai/gpt-oss-120b` for answering.
+
+| Metric | Value |
+|---|---|
+| hit@1 | 0.83 |
+| hit@3 | 0.92 |
+| hit@5 | 1.00 |
+| MRR | 0.896 |
+| Answer accuracy | 1.00 |
+| False-answer rate (unanswerable questions) | 0.00 |
+
+Config sweep over chunk size, overlap and bibliography handling, 12 configs:
+
+| | hit@3 | MRR |
+|---|---|---|
+| Worst config (1500 / 150) | 0.83 | 0.694 |
+| Best config (900 / 0) | 1.00 | 0.875 |
+
+**Caveat, stated plainly: n = 12.** Every metric moves in steps of 0.083, and
+three of the six are pinned at ceiling, so this set can no longer discriminate
+between configurations. `evals/gold_attention_v2.json` is a 50-question
+replacement — 40 answerable across four difficulty tiers plus 10 unanswerable —
+built for exactly that reason. Numbers above will be replaced once it has been
+run.
+
+### Things the eval found that inspection would not have
+
+**A scorer bug that was under-reporting accuracy.** Answer accuracy showed 0.92
+until the failing case turned out to be correct: the model returned "byte‑pair"
+with U+2011 NON-BREAKING HYPHEN, which NFKC does not fold to ASCII. Real
+accuracy was 1.00. `normalise()` now folds the full dash and space classes.
+
+**Dropping the bibliography does nothing for retrieval quality.** Identical
+hit@k and MRR in all 12 sweep pairings. It does shrink the index 20–25%
+(126 → 95 chunks at size 400), so it stays as an efficiency measure, not a
+quality one. Reported as the negative result it is.
+
+**Dense retrieval ranks fluent prose above correct formulas.** The positional
+encoding passage is mostly LaTeX-derived symbol soup, so its embedding is
+diluted and it lands at rank 4 — below three clean, confident, entirely
+irrelevant paragraphs about attention. This is the motivating case for adding
+BM25: `sinusoid` and `positional` are exact tokens a lexical index would match
+immediately.
+
+**Answer-stage numbers are not reproducible at temperature > 0.** The same
+question returned "37 000 tokens" on one run and "37 k tokens" on the next.
+The harness now pins temperature to 0.0; the app keeps 0.1.
+
 ## The eval harness
 
 Two failure modes, scored separately, because they need different fixes.
 
 ```bash
 # retrieval only - no API key, runs in seconds
-python -m evals.run_eval --pdf data/attention.pdf --sweep
+python -m evals.run_eval --pdf data/aiayn.pdf --gold evals/gold_attention_v2.json --sweep
 
 # add the LLM answer step
-python -m evals.run_eval --pdf data/attention.pdf --answers
+python -m evals.run_eval --pdf data/aiayn.pdf --gold evals/gold_attention_v2.json --answers
 ```
 
 | Stage | Metric | What a bad number means |
@@ -119,11 +170,16 @@ build of the same paper. Add three or four `"unanswerable": true` questions —
 plausible things the paper simply doesn't discuss — or you will never find out
 how often the model invents an answer.
 
-`evals/gold_attention.json` is a 15-question set for *Attention Is All You Need*;
+`evals/gold_attention_v2.json` is the 50-question set for *Attention Is All You
+Need* — 10 each of `lookup`, `paraphrase`, `table` and `multihop`, plus 10
+unanswerable, four of which are deliberate near-misses (training cost in dollars
+when the paper gives FLOPs; batch size in sentences when it's stated in tokens).
+Every evidence string is verified verbatim against the chunks this pipeline
+produces, so a miss is a retrieval failure and never a typo in the gold set.
 `python evals/fetch_paper.py` downloads the PDF it expects.
 
-Thirty questions takes about an hour to write and is the single highest-leverage
-hour in the project.
+Thirty-plus questions takes about an hour to write and is the single
+highest-leverage hour in the project.
 
 ## Layout
 
@@ -137,8 +193,9 @@ rag/
   pipeline.py              retrieve → prompt → answer with citations
 evals/
   run_eval.py              hit@k, MRR, answer accuracy, false-answer rate
+  inspect.py               why did THIS question fail? per-question trace
   gold_sample.json         worked example (runs with no download)
-  gold_attention.json      15 questions for arXiv:1706.03762
+  gold_attention_v2.json   50 questions for arXiv:1706.03762, four tiers
 tests/
   make_sample_pdf.py       generates a fake paper with realistic PDF damage
   test_pipeline.py         23 offline assertions
@@ -146,16 +203,6 @@ tests/
 
 The cache key is a hash of the PDF bytes *and* the config, so changing chunk size
 rebuilds the index instead of silently serving stale chunks.
-
-## Known limitations
-
-- **Scanned PDFs don't work.** There's no text layer to extract; run OCR first.
-- **Dehyphenation is a heuristic.** `held-\nout` becomes `heldout`. Harmless for
-  retrieval, occasionally visible in a quoted excerpt.
-- **Tables and figures are extracted as loose text**, so questions about a
-  specific cell in a table are unreliable.
-- **One paper at a time.** Cross-paper questions need a document ID in the
-  metadata and a per-document filter at search time.
 
 ## Ideas worth the next few hours
 
@@ -174,12 +221,18 @@ Roughly in order of how much they'd improve the numbers:
 Measure each one with `run_eval.py` before and after. The before/after number is
 the thing worth talking about in an interview.
 
-## Resume line
+## Known limitations
 
-Once you've run the sweep on a real paper, write the line with your own numbers:
-
-> Built a retrieval-augmented QA system over research PDFs (Python, Streamlit,
-> FAISS, sentence-transformers). Wrote a 15-question gold set with deliberately
-> unanswerable cases; grid-searched the chunking config to raise retrieval hit@5
-> from **0.XX to 0.YY**, and cut the false-answer rate on unanswerable questions
-> from **0.XX to 0.YY** with an abstention prompt.
+- **Scanned PDFs don't work.** No text layer to extract; run OCR first.
+- **`drop_references` also drops appendices.** It truncates at the bibliography,
+  so anything after it — including the attention visualisations on pages 13–15
+  of the sample paper — goes with it. Should resume after the reference block
+  rather than cutting to the end.
+- **Dehyphenation is a heuristic.** `source-\ntarget` becomes `sourcetarget`.
+  Harmless for retrieval, visible in quoted excerpts.
+- **pypdf drops spaces at some glyph boundaries** (`differentways`,
+  `theoutput`). Worth benchmarking PyMuPDF as a replacement.
+- **Tables and figures extract as loose text**, so single-cell lookups are
+  unreliable — which is why the v2 gold set has a `table` tier to measure it.
+- **One paper at a time.** Cross-paper questions need a document ID in the
+  metadata and a per-document filter at search time.

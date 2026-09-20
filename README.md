@@ -189,14 +189,3 @@ tests/
 * The system currently supports one paper at a time.
 * PDF text extraction may introduce spacing and hyphenation errors.
 * Cross-paper comparison is not currently supported.
-
-## Future Improvements
-
-* Add hybrid retrieval using dense embeddings and BM25 keyword search.
-* Add query rewriting for technical terminology.
-* Introduce a reranking model to improve retrieval precision.
-* Support multi-paper comparison and document-level filtering.
-
-## License
-
-See the `LICENSE` file for licensing information.

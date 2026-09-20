@@ -1,238 +1,202 @@
 # Research Paper Assistant
 
-Upload a paper, ask questions about it, get answers grounded in the paper's own
-text with page-level citations — and a measured retrieval quality number rather
-than a vibe.
+**Ask questions about research papers and get answers grounded in the paper itself.**
 
-Embeddings run locally, so indexing costs nothing. Only the answer step calls an
-API, and both supported providers have a free tier.
+Research Paper Assistant is an LLM-powered application that allows users to upload a research paper in PDF format, ask questions about its contents, and receive answers supported by relevant page-level excerpts.
 
+Unlike a basic “chat with your PDF” application, this project includes an evaluation framework to measure how effectively the system retrieves relevant information and avoids making unsupported claims.
+
+## How It Works
+
+The application follows a Retrieval-Augmented Generation (RAG) pipeline:
+
+```text
+Upload PDF
+    ↓
+Extract and clean the text
+    ↓
+Split the paper into smaller sections
+    ↓
+Generate local text embeddings
+    ↓
+Store embeddings in a FAISS vector index
+    ↓
+User asks a question
+    ↓
+Retrieve the most relevant sections
+    ↓
+LLM generates an answer using the retrieved text
+    ↓
+Display the answer with page references and source excerpts
 ```
-PDF  →  text extraction  →  cleanup  →  chunking (page + section kept)
-                                            ↓
-                              local embeddings (all-MiniLM-L6-v2)
-                                            ↓
-                                    FAISS (exact cosine)
-                                            ↓
-   question  →  top-k retrieval  →  LLM answers, citing [n]  →  answer + excerpts
-```
+
+### Key Features
+
+* **Question answering over PDFs:** Ask natural-language questions about an uploaded research paper.
+* **Page-level citations:** Answers include references to the pages and sections supporting them.
+* **Local embeddings:** Text embeddings are generated locally, so document indexing does not require an API key.
+* **Cached indexing:** Previously indexed documents can be reused without repeating the entire process.
+* **Abstention from unsupported answers:** If the retrieved content does not contain the answer, the system is instructed to acknowledge that limitation instead of guessing.
+* **Retrieval evaluation:** Measure retrieval quality using metrics such as `hit@k` and Mean Reciprocal Rank (MRR).
+* **Offline testing:** Validate text processing, chunking, metadata preservation, FAISS indexing, and caching without requiring an API key.
+
+## Why This Project Matters
+
+A fluent answer is not necessarily a correct answer. In research-oriented applications, it is important to know:
+
+1. Whether the system retrieved the right information.
+2. Whether the language model used that information correctly.
+3. Whether the system avoided inventing answers when the paper did not provide the required information.
+
+This project evaluates these stages separately rather than judging the application only by whether it produces a plausible response.
+
+## Technology Stack
+
+* **Frontend:** Streamlit
+* **Document processing:** PDF text extraction and cleaning
+* **Embeddings:** `all-MiniLM-L6-v2`
+* **Vector search:** FAISS with cosine similarity
+* **LLM providers:** Groq and Google Gemini
+* **Evaluation:** Retrieval accuracy, MRR, answer accuracy, and false-answer rate
+* **Testing:** Offline automated test suite
 
 ## Quickstart
 
-```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+### 1. Set up the environment
 
-cp .env.example .env        # then add ONE key - see below
+```bash
+python -m venv .venv
+```
+
+Activate the environment:
+
+```bash
+# Linux/macOS
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure an LLM provider
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Add one API key to `.env`:
+
+| Provider      | API key          |
+| ------------- | ---------------- |
+| Groq          | `GROQ_API_KEY`   |
+| Google Gemini | `GEMINI_API_KEY` |
+
+The embedding model runs locally. Only the answer-generation step requires an LLM API.
+
+### 3. Launch the application
+
+```bash
 streamlit run app.py
 ```
 
-**Getting a free key** (either works, no credit card):
+The first run downloads the embedding model. Subsequent document indexing operations are cached on disk.
 
-| Provider | Key from | Set in `.env` |
-|---|---|---|
-| Groq (default) | <https://console.groq.com/keys> | `GROQ_API_KEY` |
-| Google Gemini | <https://aistudio.google.com/apikey> | `GEMINI_API_KEY` |
+## Evaluation
 
-Model IDs get deprecated every few months. If you get a "model not found" error,
-run `python -m rag.llm` to print what your provider serves today, then set
-`GROQ_MODEL` or `GEMINI_MODEL` in `.env`.
+The project includes an evaluation harness that measures retrieval and answer-generation quality separately.
 
-The first run downloads the embedding model (~90 MB) and takes a minute.
-After that, indexing a paper takes a few seconds and is cached on disk.
+| Metric            | What it measures                                                      |
+| ----------------- | --------------------------------------------------------------------- |
+| `hit@k`           | Whether a relevant passage appears among the top `k` retrieved chunks |
+| MRR               | How highly the first relevant passage is ranked                       |
+| Answer accuracy   | Whether the generated answer contains the expected information        |
+| False-answer rate | How often the system answers questions that the paper cannot answer   |
 
-## Verify it works
+Run the offline test suite:
 
 ```bash
 python tests/test_pipeline.py
 ```
 
-23 assertions, no API key, no network, no model download — it swaps in a stub
-embedder so the chunking, page provenance, FAISS index and cache are all
-exercised offline.
+Run retrieval evaluation:
 
-## What's actually interesting here
+```bash
+python -m evals.run_eval \
+    --pdf data/aiayn.pdf \
+    --gold evals/gold_attention_v2.json \
+    --sweep
+```
 
-Most "chat with your PDF" projects stop at *it returned something*. Three
-decisions here are the difference between a demo and a tool, and each one is
-measurable with the eval harness below.
+Run evaluation including the LLM answer-generation stage:
 
-**1. Answers carry page numbers.** Chunks keep the pages they span and the
-section heading above them, so every excerpt is labelled `p. 7 · 5.1 Main
-Results`. An answer you can check against the paper in five seconds is worth
-more than a fluent one you can't.
-
-**2. The text is repaired before it is embedded.** PDF extraction puts a hard
-newline at the end of every visual line and splits words across lines with a
-hyphen. Left alone, chunk text stops looking like prose and embedding quality
-drops. `rag/ingest.py` rejoins wrapped lines, undoes hyphenation (keeping real
-hyphens in `non-Gaussian`), keeps headings on their own line, and drops the
-bibliography — which is roughly a fifth of a typical paper and matches queries
-on author names and years without ever answering one.
-
-**3. The model is allowed to say no.** If the retrieved excerpts don't contain
-the answer, the prompt requires an explicit "the excerpts provided don't cover
-this" rather than a confident answer from pretraining. The eval set includes
-questions the paper genuinely cannot answer, so this is scored, not assumed.
+```bash
+python -m evals.run_eval \
+    --pdf data/aiayn.pdf \
+    --gold evals/gold_attention_v2.json \
+    --answers
+```
 
 ## Results
 
-Measured on *Attention Is All You Need* (arXiv:1706.03762v7), 48 chunks,
-`all-MiniLM-L6-v2` embeddings, `openai/gpt-oss-120b` for answering.
+An initial evaluation was conducted using *Attention Is All You Need* with 48 chunks, the `all-MiniLM-L6-v2` embedding model, and `openai/gpt-oss-120b` for answer generation.
 
-| Metric | Value |
-|---|---|
-| hit@1 | 0.83 |
-| hit@3 | 0.92 |
-| hit@5 | 1.00 |
-| MRR | 0.896 |
-| Answer accuracy | 1.00 |
-| False-answer rate (unanswerable questions) | 0.00 |
+| Metric            | Result |
+| ----------------- | -----: |
+| Hit@1             |   0.83 |
+| Hit@3             |   0.92 |
+| Hit@5             |   1.00 |
+| MRR               |  0.896 |
+| Answer accuracy   |   1.00 |
+| False-answer rate |   0.00 |
 
-Config sweep over chunk size, overlap and bibliography handling, 12 configs:
+**Evaluation caveat:** The initial evaluation contained only 12 questions. These results should therefore be treated as preliminary rather than definitive evidence of general performance. A larger 50-question evaluation set is included in the repository for further testing.
 
-| | hit@3 | MRR |
-|---|---|---|
-| Worst config (1500 / 150) | 0.83 | 0.694 |
-| Best config (900 / 0) | 1.00 | 0.875 |
+## Project Structure
 
-**Caveat, stated plainly: n = 12.** Every metric moves in steps of 0.083, and
-three of the six are pinned at ceiling, so this set can no longer discriminate
-between configurations. `evals/gold_attention_v2.json` is a 50-question
-replacement — 40 answerable across four difficulty tiers plus 10 unanswerable —
-built for exactly that reason. Numbers above will be replaced once it has been
-run.
+```text
+app.py                     Streamlit interface
 
-### Things the eval found that inspection would not have
-
-**A scorer bug that was under-reporting accuracy.** Answer accuracy showed 0.92
-until the failing case turned out to be correct: the model returned "byte‑pair"
-with U+2011 NON-BREAKING HYPHEN, which NFKC does not fold to ASCII. Real
-accuracy was 1.00. `normalise()` now folds the full dash and space classes.
-
-**Dropping the bibliography does nothing for retrieval quality.** Identical
-hit@k and MRR in all 12 sweep pairings. It does shrink the index 20–25%
-(126 → 95 chunks at size 400), so it stays as an efficiency measure, not a
-quality one. Reported as the negative result it is.
-
-**Dense retrieval ranks fluent prose above correct formulas.** The positional
-encoding passage is mostly LaTeX-derived symbol soup, so its embedding is
-diluted and it lands at rank 4 — below three clean, confident, entirely
-irrelevant paragraphs about attention. This is the motivating case for adding
-BM25: `sinusoid` and `positional` are exact tokens a lexical index would match
-immediately.
-
-**Answer-stage numbers are not reproducible at temperature > 0.** The same
-question returned "37 000 tokens" on one run and "37 k tokens" on the next.
-The harness now pins temperature to 0.0; the app keeps 0.1.
-
-## The eval harness
-
-Two failure modes, scored separately, because they need different fixes.
-
-```bash
-# retrieval only - no API key, runs in seconds
-python -m evals.run_eval --pdf data/aiayn.pdf --gold evals/gold_attention_v2.json --sweep
-
-# add the LLM answer step
-python -m evals.run_eval --pdf data/aiayn.pdf --gold evals/gold_attention_v2.json --answers
-```
-
-| Stage | Metric | What a bad number means |
-|---|---|---|
-| Retrieval | `hit@k` — did any retrieved chunk contain the answer? | The right text never reached the model. No prompt will fix this. |
-| Retrieval | `MRR` — how high up was it? | It's being found, but buried under noise. |
-| Answering | `accuracy` — did the answer contain the expected fact? | The context was right and the model still missed it. Prompt problem. |
-| Answering | `false-answer rate` — did it answer an unanswerable question? | It's filling gaps from pretraining. The worst failure, and invisible without this test. |
-
-`--sweep` grid-searches chunk size, overlap and bibliography handling, ranks the
-configs and prints the gap between best and worst. That gap is the number to put
-in your README, because it's the part you actually caused.
-
-### Writing a gold set for your own paper
-
-`evals/gold_sample.json` is a worked example against the synthetic paper in
-`tests/`, so you can run the harness immediately. To build one for a real paper,
-write the question, then paste a distinctive phrase from the passage that
-answers it:
-
-```json
-{
-  "id": "q01",
-  "question": "What F1 score does the method achieve?",
-  "evidence": ["F1 of 0.87"],
-  "answer_contains": ["0.87"]
-}
-```
-
-Evidence is keyed on text, not page numbers, so the set survives a different PDF
-build of the same paper. Add three or four `"unanswerable": true` questions —
-plausible things the paper simply doesn't discuss — or you will never find out
-how often the model invents an answer.
-
-`evals/gold_attention_v2.json` is the 50-question set for *Attention Is All You
-Need* — 10 each of `lookup`, `paraphrase`, `table` and `multihop`, plus 10
-unanswerable, four of which are deliberate near-misses (training cost in dollars
-when the paper gives FLOPs; batch size in sentences when it's stated in tokens).
-Every evidence string is verified verbatim against the chunks this pipeline
-produces, so a miss is a retrieval failure and never a typo in the gold set.
-`python evals/fetch_paper.py` downloads the PDF it expects.
-
-Thirty-plus questions takes about an hour to write and is the single
-highest-leverage hour in the project.
-
-## Layout
-
-```
-app.py                     Streamlit UI
 rag/
-  config.py                every retrieval knob, in one hashable dataclass
-  ingest.py                PDF → cleaned, page-tagged, section-labelled chunks
-  store.py                 local embeddings + FAISS + on-disk cache
-  llm.py                   Groq / Gemini provider layer
-  pipeline.py              retrieve → prompt → answer with citations
+├── config.py              Configuration management
+├── ingest.py              PDF processing and text chunking
+├── store.py               Embeddings, FAISS, and caching
+├── llm.py                 LLM provider integration
+└── pipeline.py            Retrieval and answer generation
+
 evals/
-  run_eval.py              hit@k, MRR, answer accuracy, false-answer rate
-  inspect.py               why did THIS question fail? per-question trace
-  gold_sample.json         worked example (runs with no download)
-  gold_attention_v2.json   50 questions for arXiv:1706.03762, four tiers
+├── run_eval.py            Evaluation metrics and configuration sweeps
+├── inspect.py             Per-question failure analysis
+├── gold_sample.json       Example evaluation set
+└── gold_attention_v2.json Larger evaluation set
+
 tests/
-  make_sample_pdf.py       generates a fake paper with realistic PDF damage
-  test_pipeline.py         23 offline assertions
+├── make_sample_pdf.py     Generates a sample PDF
+└── test_pipeline.py       Offline test suite
 ```
 
-The cache key is a hash of the PDF bytes *and* the config, so changing chunk size
-rebuilds the index instead of silently serving stale chunks.
+## Current Limitations
 
-## Ideas worth the next few hours
+* Scanned PDFs require OCR before text can be extracted.
+* Tables and figures may not be extracted reliably.
+* The system currently supports one paper at a time.
+* PDF text extraction may introduce spacing and hyphenation errors.
+* Cross-paper comparison is not currently supported.
 
-Roughly in order of how much they'd improve the numbers:
+## Future Improvements
 
-1. **Hybrid retrieval** — add BM25 alongside the dense search and merge the two
-   rankings. Dense embeddings are bad at exact tokens (`P100`, `d_model`, `0.98`),
-   which is exactly what paper questions ask about. Usually the biggest single
-   `hit@k` gain available.
-2. **Query rewriting** — expand "how big is the dataset" into the vocabulary the
-   paper actually uses before embedding it.
-3. **A reranker** — retrieve 20 chunks, rerank with a cross-encoder, keep 5.
-4. **Multi-paper mode** — index several papers and answer comparison questions,
-   with each excerpt labelled by paper.
+* Add hybrid retrieval using dense embeddings and BM25 keyword search.
+* Add query rewriting for technical terminology.
+* Introduce a reranking model to improve retrieval precision.
+* Support multi-paper comparison and document-level filtering.
 
-Measure each one with `run_eval.py` before and after. The before/after number is
-the thing worth talking about in an interview.
+## License
 
-## Known limitations
-
-- **Scanned PDFs don't work.** No text layer to extract; run OCR first.
-- **`drop_references` also drops appendices.** It truncates at the bibliography,
-  so anything after it — including the attention visualisations on pages 13–15
-  of the sample paper — goes with it. Should resume after the reference block
-  rather than cutting to the end.
-- **Dehyphenation is a heuristic.** `source-\ntarget` becomes `sourcetarget`.
-  Harmless for retrieval, visible in quoted excerpts.
-- **pypdf drops spaces at some glyph boundaries** (`differentways`,
-  `theoutput`). Worth benchmarking PyMuPDF as a replacement.
-- **Tables and figures extract as loose text**, so single-cell lookups are
-  unreliable — which is why the v2 gold set has a `table` tier to measure it.
-- **One paper at a time.** Cross-paper questions need a document ID in the
-  metadata and a per-document filter at search time.
+See the `LICENSE` file for licensing information.
